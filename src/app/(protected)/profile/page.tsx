@@ -79,7 +79,6 @@ export default function ProfilePage() {
         });
       }
     } else {
-      // Enter edit mode
       setIsEditing(true);
     }
   };

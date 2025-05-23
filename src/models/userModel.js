@@ -43,7 +43,6 @@ const expenseSchema = new Schema(
       type: [payerSchema],
       validate: {
         validator: function (payers) {
-          // If it's a split expense, there should be at least one payer
           return !this.isSplitted || (payers && payers.length > 0);
         },
         message: "Split expenses must have at least one payer",
@@ -82,13 +81,6 @@ const userSchema = new Schema(
       unique: true,
       trim: true,
     },
-    email: {
-      type: String,
-      trim: true,
-      lowercase: true,
-      match: [/^\S+@\S+\.\S+$/, "Please enter a valid email address"],
-      sparse: true, // Allows null values but enforces uniqueness when provided
-    },
     password: {
       type: String,
       required: [true, "Please add a password"],
@@ -113,19 +105,15 @@ const userSchema = new Schema(
   { timestamps: true }
 );
 
-// Pre-save middleware to validate that payers are from friends list
 userSchema.pre("save", function (next) {
-  // Skip validation if expenses aren't being modified
   if (!this.isModified("expenses")) return next();
 
   const friendIds = this.friends.map((friend) => friend.userId.toString());
 
   for (const expense of this.expenses) {
-    // Skip if not a split expense or no payers
     if (!expense.isSplitted || !expense.payers || expense.payers.length === 0)
       continue;
 
-    // For split expenses, check if all payers are friends
     const nonFriendPayers = expense.payers.filter(
       (payer) =>
         !friendIds.includes(payer.userId.toString()) &&
@@ -140,7 +128,6 @@ userSchema.pre("save", function (next) {
   next();
 });
 
-// Create or get the model
 const User = mongoose.models.User || mongoose.model("User", userSchema);
 
 export default User;

@@ -11,12 +11,15 @@ interface Friend {
   amount: number;
 }
 
+interface Payer {
+  userId: string;
+  amount: number;
+}
+
 export const POST = async (request: NextRequest) => {
   try {
     const userId = await getDataFromToken(request);
-    const user = await User.findById({ _id: userId }).select(
-      "-password -phone"
-    );
+    const user = await User.findById(userId).select("-password -phone");
 
     if (!user) {
       return NextResponse.json(
@@ -26,82 +29,117 @@ export const POST = async (request: NextRequest) => {
     }
 
     const reqBody = await request.json();
-    const { tag, amount, note, payers, isSplitted } = reqBody;
+    const { category, amount, note, payers, isSplitted, date } = reqBody;
 
-    // Construct the expense object to be added to the user's expenses array
-    const newExpense = {
-      category: tag,
-      amount,
-      note: note || "",
-      date: new Date(),
-      isSplitted: isSplitted || false,
-      payers: payers || [{ userId: userId, amount: amount }] // Ensure payers is always set
-    };
-
-    // Add the new expense to the user's expenses array
-    user.expenses.push(newExpense);
-    
-    // If expense is split, update balances (this logic might need adjustment
-    // if splitting is still required with the new model, but for now, focusing on direct expense add)
-    if (payers && payers.length > 1) {
-      for(let i = 1; i < payers.length; i++) {
-        const friendId = payers[i].userId;
-        const friendAmount = payers[i].amount;
-        
-        const friend = await User.findById(friendId);
-        if (!friend) {
-          continue;
-        }
-        
-        // Update balances in both directions
-        // Find current user in friend's friend list
-        const currentUserInFriendsList = friend.friends?.find(
-          (f: Friend) => f.userId.toString() === userId.toString()
-        );
-        
-        if (currentUserInFriendsList) {
-          currentUserInFriendsList.amount -= friendAmount; // Friend owes less to current user
-        }
-        
-        // Find friend in current user's friend list
-        const friendInUsersList = user.friends?.find(
-          (f: Friend) => f.userId.toString() === friendId.toString()
-        );
-        
-        if (friendInUsersList) {
-          friendInUsersList.amount += friendAmount; // Friend owes more to current user
-        }
-        
-        await friend.save();
-      }
-      
-      // Save user again after all friend updates
-      await user.save();
+    // Validation
+    if (!category) {
+      return NextResponse.json(
+        { error: "Category is required" },
+        { status: 400 }
+      );
     }
 
-    await user.save(); // Save the user document with the new expense
-    
-    // Get the newly added expense and format it for frontend consistency
+    if (!amount || amount <= 0) {
+      return NextResponse.json(
+        { error: "Valid amount is required" },
+        { status: 400 }
+      );
+    }
+
+    // Create new expense object
+    const newExpense = {
+      category: category,
+      amount: parseFloat(amount),
+      note: note || "",
+      date: date ? new Date(date) : new Date(),
+      isSplitted: isSplitted || false,
+      payers: payers || [{ userId: userId, amount: parseFloat(amount) }]
+    };
+
+    user.expenses.push(newExpense);
+
+    if (isSplitted && payers && payers.length > 1) {
+      for (let i = 0; i < payers.length; i++) {
+        const payer = payers[i] as Payer;
+        const payerId = payer.userId;
+        const payerAmount = parseFloat(payer.amount.toString());
+
+        if (payerId === userId) {
+          continue;
+        }
+
+        try {
+          const friend = await User.findById(payerId);
+          if (!friend) {
+            console.warn(`Friend with ID ${payerId} not found`);
+            continue;
+          }
+
+          const currentUserInFriendsList = friend.friends?.find(
+            (f: Friend) => f.userId.toString() === userId.toString()
+          );
+
+          if (currentUserInFriendsList) {
+            currentUserInFriendsList.amount -= payerAmount;
+          }
+
+          const friendInUsersList = user.friends?.find(
+            (f: Friend) => f.userId.toString() === payerId.toString()
+          );
+
+          if (friendInUsersList) {
+            friendInUsersList.amount += payerAmount;
+          }
+
+          await friend.save();
+        } catch (friendError) {
+          console.error(`Error updating friend ${payerId}:`, friendError);
+        }
+      }
+    }
+
+    await user.save();
+
     const addedExpense = user.expenses[user.expenses.length - 1];
     const formattedExpense = {
       ...addedExpense.toObject(),
-      category: addedExpense.category || addedExpense.tag,
-      tag: addedExpense.tag || addedExpense.category,
-      note: addedExpense.note || ''
+      _id: addedExpense._id,
+      category: addedExpense.category,
+      amount: addedExpense.amount,
+      note: addedExpense.note || '',
+      date: addedExpense.date,
+      isSplitted: addedExpense.isSplitted,
+      payers: addedExpense.payers
     };
 
     return NextResponse.json(
       {
-        message: "Expense added to user successfully",
+        message: "Expense added successfully",
         success: true,
-        data: formattedExpense, // Return the formatted expense
+        data: formattedExpense,
       },
       { status: 200 }
     );
+
   } catch (error) {
     console.error("Error adding expense:", error);
+    
+    if (error instanceof mongoose.Error.ValidationError) {
+      return NextResponse.json(
+        { error: "Validation error: " + error.message },
+        { status: 400 }
+      );
+    }
+    
+    if (error instanceof mongoose.Error.CastError) {
+      return NextResponse.json(
+        { error: "Invalid ID format" },
+        { status: 400 }
+      );
+    }
+
     return NextResponse.json(
-      { error: "Something went wrong"},
+      { error: "Internal server error" },
       { status: 500 }
     );
   }

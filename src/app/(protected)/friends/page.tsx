@@ -98,7 +98,7 @@ export default function FriendsPage() {
           <div className="flex gap-2 w-full sm:w-auto justify-end">
             <Button
               variant="outline"
-              size="sm"
+              size="default"
               onClick={() => getFriends()}
               className="flex items-center gap-1"
             >
@@ -107,7 +107,7 @@ export default function FriendsPage() {
             </Button>
 
             <AddFriends
-              variant="outline"
+              variant="default"
               onComplete={() => {
                 setShowAddFriends(false);
                 getFriends();

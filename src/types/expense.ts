@@ -6,7 +6,9 @@ export interface Expense {
     userId: string;
     amount: number;
   }[];
-  tag: string;
+  category: string;
   note: string;
-  createdAt: Date;
+  date: Date;
+  createdAt?: string | Date;
+  updatedAt?: string | Date;
 }

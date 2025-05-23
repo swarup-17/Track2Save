@@ -6,7 +6,6 @@ import { NextRequest, NextResponse } from "next/server";
 
 connect();
 
-// Define Expense type for type safety
 interface Payer {
   userId: mongoose.Types.ObjectId | string;
   amount: number;
@@ -91,30 +90,38 @@ export const GET = async (request: NextRequest) => {
       return true;
     });
 
-    // Filter by tag/category
+    // Filter by category
     const filteredExpenses = tag && tag !== "All"
       ? filteredByDate.filter(exp => exp.category === tag || exp.tag === tag)
       : filteredByDate;
 
-    // Sort by latest date
-    filteredExpenses.sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime());
+    filteredExpenses.sort((a, b) => {
+      const dateA = new Date(a.date);
+      const dateB = new Date(b.date);
+      
+      if (!month && year) {
+        return dateA.getTime() - dateB.getTime();
+      }
+      
+      if (month && year) {
+        return dateB.getTime() - dateA.getTime();
+      }
+      return dateB.getTime() - dateA.getTime();
+    });
 
     // Pagination
     const total = filteredExpenses.length;
     const start = (page - 1) * limit;
     const paginated = filteredExpenses.slice(start, start + limit);
 
-    // Normalize + enhance
     const enhancedExpenses = paginated.map(exp => {
       const expense = JSON.parse(JSON.stringify(exp));
 
-      // Normalize fields
       expense.category = expense.category || expense.tag || "Misc";
       expense.tag = expense.tag || expense.category;
       expense.note = expense.note || expense.description || "";
       expense.description = expense.description || expense.note;
 
-      // Enhance payers
       if (expense.payers) {
         expense.payers = expense.payers.map((payer: Payer) => {
           const uid = payer.userId.toString();

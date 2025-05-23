@@ -16,7 +16,7 @@ import { Friend } from "@/types/friend";
 
 export default function AddExpenseForm({ userId, onExpenseAdded }: { userId: string | null; onExpenseAdded: () => void }) {
   const [loading, setLoading] = useState<boolean>(false);
-  const [error, setError] = useState<string | null>("");
+  const [error, setError] = useState<string | null>(null);
   const [selectedTag, setSelectedTag] = useState<string | null>(null);
   const [split, setSplit] = useState(false);
   const [fetchingFriends, setFetchingFriends] = useState(false);
@@ -31,30 +31,60 @@ export default function AddExpenseForm({ userId, onExpenseAdded }: { userId: str
   const getFriends = async () => {
     try {
       setFetchingFriends(true);
+      setError(null);
+
       const response = await axios.get("/api/friends/get");
-      setFriends(response.data.data.friends);
 
-      // Initialize selectedFriends state with all friends unchecked
-      const friendsState: { [key: string]: boolean } = {};
-      const initialSplitAmounts: { [key: string]: number } = {};
+      if (response.data.success) {
+        setFriends(response.data.data.friends || []);
 
-      response.data.data.friends.forEach((friend: Friend) => {
-        friendsState[friend.userId._id] = false;
-        initialSplitAmounts[friend.userId._id] = 0;
-      });
+        const friendsState: { [key: string]: boolean } = {};
+        const initialSplitAmounts: { [key: string]: number } = {};
 
-      setSelectedFriends(friendsState);
-      setSplitAmounts(initialSplitAmounts);
+        (response.data.data.friends || []).forEach((friend: Friend) => {
+          friendsState[friend.userId._id] = false;
+          initialSplitAmounts[friend.userId._id] = 0;
+        });
+
+        setSelectedFriends(friendsState);
+        setSplitAmounts(initialSplitAmounts);
+      }
 
     } catch (error) {
+      console.error("Error fetching friends:", error);
       if (error instanceof AxiosError) {
-        setError(error.response?.data.error);
+        setError(error.response?.data?.error || "Failed to fetch friends");
       } else {
-        setError("Something went wrong");
+        setError("Something went wrong while fetching friends");
       }
     } finally {
       setFetchingFriends(false);
     }
+  };
+
+
+  const distributeAmount = () => {
+    const selectedCount = Object.values(selectedFriends).filter(Boolean).length;
+
+    if (selectedCount === 0) {
+      setUserAmount(totalAmount);
+      return;
+    }
+
+    const splitAmount = parseFloat((totalAmount / (selectedCount + 1)).toFixed(2));
+
+    setUserAmount(splitAmount);
+
+    const newSplitAmounts = { ...splitAmounts };
+    Object.keys(selectedFriends).forEach(friendId => {
+      if (selectedFriends[friendId]) {
+        newSplitAmounts[friendId] = splitAmount;
+      } else {
+        newSplitAmounts[friendId] = 0;
+      }
+    });
+
+    setSplitAmounts(newSplitAmounts);
   };
 
   useEffect(() => {
@@ -63,29 +93,33 @@ export default function AddExpenseForm({ userId, onExpenseAdded }: { userId: str
     }
   }, [split, friends]);
 
+  useEffect(() => {
+    if (split && totalAmount > 0) {
+      distributeAmount();
+    }
+  }, [totalAmount, selectedFriends, split]);
 
   const handleFriendToggle = (friendId: string) => {
-    setSelectedFriends(prev => {
-      const newState = {
-        ...prev,
-        [friendId]: !prev[friendId]
-      };
-
-      return newState;
-    });
+    setSelectedFriends(prev => ({
+      ...prev,
+      [friendId]: !prev[friendId]
+    }));
   };
 
+
   const handleAmountChange = (amount: string) => {
-    const parsedAmount = parseFloat(amount);
-    if (!isNaN(parsedAmount)) {
-      setTotalAmount(parsedAmount);
-    } else {
+    if (amount === '') {
       setTotalAmount(0);
+      return;
+    }
+
+    const parsedAmount = parseFloat(amount);
+    if (!isNaN(parsedAmount) && parsedAmount >= 0) {
+      setTotalAmount(parsedAmount);
     }
   };
 
   const handleSplitAmountChange = (friendId: string, amount: string) => {
-    // Allow complete clearing of the input field
     if (amount === '') {
       setSplitAmounts(prev => ({
         ...prev,
@@ -94,7 +128,6 @@ export default function AddExpenseForm({ userId, onExpenseAdded }: { userId: str
       return;
     }
 
-    // Process numeric input
     const parsedAmount = parseFloat(amount);
     if (!isNaN(parsedAmount) && parsedAmount >= 0) {
       setSplitAmounts(prev => ({
@@ -105,13 +138,11 @@ export default function AddExpenseForm({ userId, onExpenseAdded }: { userId: str
   };
 
   const handleUserAmountChange = (amount: string) => {
-    // Allow complete clearing of the input field
     if (amount === '') {
       setUserAmount(0);
       return;
     }
 
-    // Process numeric input
     const parsedAmount = parseFloat(amount);
     if (!isNaN(parsedAmount) && parsedAmount >= 0) {
       setUserAmount(parsedAmount);
@@ -119,25 +150,26 @@ export default function AddExpenseForm({ userId, onExpenseAdded }: { userId: str
   };
 
   const validateSplitTotal = () => {
-    // Sum all split amounts including user's
+    if (!split) return true;
+
     const friendsTotal = Object.entries(splitAmounts)
       .filter(([id]) => selectedFriends[id])
       .reduce((sum, [, amount]) => sum + amount, 0);
 
     const total = friendsTotal + userAmount;
-
-    // Check if the total is approximately equal to the expense amount
-    // Allow for small floating point differences (0.01)
     return Math.abs(total - totalAmount) < 0.01;
   };
 
   const addExpense = async (e: React.FormEvent<HTMLFormElement>) => {
     e.preventDefault();
+    setError(null);
 
     const formData = new FormData(e.currentTarget);
     const amount = parseFloat(formData.get("amount") as string);
-    const note = formData.get("note");
+    const note = formData.get("note") as string;
+    const date = formData.get("date") as string;
 
+    // Validation
     if (!selectedTag) {
       setError("Please select a category.");
       return;
@@ -148,33 +180,32 @@ export default function AddExpenseForm({ userId, onExpenseAdded }: { userId: str
       return;
     }
 
-    // Validate split amounts if splitting
+    if (!userId) {
+      setError("User not authenticated.");
+      return;
+    }
+
     if (split) {
-      // Check if any friends are selected
       const anyFriendSelected = Object.values(selectedFriends).some(Boolean);
       if (!anyFriendSelected) {
         setError("Please select at least one friend to split with.");
         return;
       }
 
-      // Validate total equals the expense amount
       if (!validateSplitTotal()) {
         setError("Split amounts must sum up to the total expense amount.");
         return;
       }
     }
 
-    setError("");
     try {
       setLoading(true);
 
       const payers = [];
 
       if (split) {
-        // Add current user with their amount
         payers.push({ userId: userId, amount: userAmount });
 
-        // Add selected friends with their amounts
         Object.entries(selectedFriends)
           .filter(([, isSelected]) => isSelected)
           .forEach(([friendId]) => {
@@ -184,55 +215,62 @@ export default function AddExpenseForm({ userId, onExpenseAdded }: { userId: str
             });
           });
       } else {
-        // If not split, just add the current user with full amount
         payers.push({ userId: userId, amount: amount });
       }
 
-      await axios.post("/api/expenses/create", {
-        amount,
-        tag: selectedTag,
-        payers,
-        note,
+      // Make API call
+      const response = await axios.post("/api/expenses/create", {
+        amount: amount,
+        category: selectedTag,
+        payers: payers,
+        note: note || "",
+        date: new Date(date),
         isSplitted: split,
       });
 
-      // Reset form
-      (e.target as HTMLFormElement).reset();
-      setSelectedTag(null);
-      setTotalAmount(0);
-      setUserAmount(0);
+      if (response.data.success) {
+        // Reset form
+        (e.target as HTMLFormElement).reset();
+        setSelectedTag(null);
+        setTotalAmount(0);
+        setUserAmount(0);
+        setSplit(false);
 
+        if (split) {
+          const resetFriends: { [key: string]: boolean } = {};
+          const resetAmounts: { [key: string]: number } = {};
 
-      if (split) {
-        // Reset selected friends and split amounts
-        const resetFriends: { [key: string]: boolean } = {};
-        const resetAmounts: { [key: string]: number } = {};
+          Object.keys(selectedFriends).forEach(key => {
+            resetFriends[key] = false;
+            resetAmounts[key] = 0;
+          });
 
-        Object.keys(selectedFriends).forEach(key => {
-          resetFriends[key] = false;
-          resetAmounts[key] = 0;
-        });
+          setSelectedFriends(resetFriends);
+          setSplitAmounts(resetAmounts);
+        }
 
-        setSelectedFriends(resetFriends);
-        setSplitAmounts(resetAmounts);
+        onExpenseAdded();
       }
 
-      // Notify parent component that an expense was added
-      onExpenseAdded();
     } catch (error) {
-      setError("Failed to add expense. Please try again.");
-      console.error(error);
+      console.error("Error adding expense:", error);
+
+      if (error instanceof AxiosError) {
+        const errorMessage = error.response?.data?.error || "Failed to add expense";
+        setError(errorMessage);
+      } else {
+        setError("Failed to add expense. Please try again.");
+      }
     } finally {
       setLoading(false);
     }
-
   };
 
   return (
     <Card className="border-none">
       <CardContent>
         <form onSubmit={addExpense} className="space-y-6">
-          <div className="space-y-2">
+          <div className="space-y-2 pt-5">
             <Label htmlFor="amount" className="font-medium">Amount</Label>
             <Input
               id="amount"
@@ -247,7 +285,6 @@ export default function AddExpenseForm({ userId, onExpenseAdded }: { userId: str
             />
           </div>
 
-          {/* Tag Selection as Badges */}
           <div className="space-y-3">
             <Label htmlFor="tag" className="font-medium">Category</Label>
             <Popover>
@@ -281,6 +318,18 @@ export default function AddExpenseForm({ userId, onExpenseAdded }: { userId: str
                 </div>
               </PopoverContent>
             </Popover>
+          </div>
+
+          <div className="space-y-2">
+            <Label htmlFor="date" className="font-medium">Date</Label>
+            <Input
+              id="date"
+              type="date"
+              name="date"
+              defaultValue={new Date().toISOString().split('T')[0]}
+              required
+              className="h-12"
+            />
           </div>
 
           <div className="flex items-center justify-between bg-muted/40 p-3 rounded-lg">
@@ -387,7 +436,7 @@ export default function AddExpenseForm({ userId, onExpenseAdded }: { userId: str
 
           {error && (
             <div className="flex items-center gap-2 text-sm text-destructive bg-destructive/10 p-3 rounded-md">
-              <AlertCircle className="w-4 h-4 flex-shrink-0" />
+              <AlertCircle className="w-4 flex-shrink-0" />
               <p>{error}</p>
             </div>
           )}

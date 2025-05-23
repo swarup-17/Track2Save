@@ -1,7 +1,6 @@
 import { getDataFromToken } from "@/helpers/getDataFromTokens";
 import { NextRequest, NextResponse } from "next/server";
 import { connect } from "@/dbConfig/dbConfig";
-import Expense from "@/models/expenseModel";
 import User from "@/models/userModel";
 import { Expense as ExpenseType } from "@/types/expense";
 
@@ -13,10 +12,9 @@ interface ExpenseQuery {
     $gte: Date;
     $lte: Date;
   };
-  tag?: string;
+  category?: string;
 }
 
-// Helper function to get month name from date
 const getMonthName = (date: Date | string) => {
   return new Date(date).toLocaleString('default', { month: 'short' });
 };
@@ -37,13 +35,12 @@ interface MonthlyDataItem {
   [key: string]: number | string;
 }
 
-// Helper function to process expense data by month
-const processMonthlyData = (expenses: ExpenseType[]) => {
-  // Group expenses by month
+
+const processMonthlyData = (expens: ExpenseType[]) => {
   const monthlyData: Record<string, MonthlyDataItem> = {};
   
-  expenses.forEach(expense => {
-    const date = new Date(expense.createdAt);
+  expens.forEach(expense => {
+    const date = expense.createdAt ? new Date(expense.createdAt) : new Date();
     const monthYear = `${getMonthName(date)} ${date.getFullYear()}`;
     
     if (!monthlyData[monthYear]) {
@@ -64,10 +61,10 @@ const processMonthlyData = (expenses: ExpenseType[]) => {
     
     monthlyData[monthYear].total += expense.amount;
     
-    if (typeof monthlyData[monthYear][expense.tag] === 'number') {
-      monthlyData[monthYear][expense.tag] = (monthlyData[monthYear][expense.tag] as number) + expense.amount;
+    if (typeof monthlyData[monthYear][expense.category] === 'number') {
+      monthlyData[monthYear][expense.category] = (monthlyData[monthYear][expense.category] as number) + expense.amount;
     } else {
-      monthlyData[monthYear][expense.tag] = expense.amount;
+      monthlyData[monthYear][expense.category] = expense.amount;
     }
   });
   
@@ -78,16 +75,14 @@ const processMonthlyData = (expenses: ExpenseType[]) => {
   });
 };
 
-// API route for basic monthly spending (free version)
 async function GET(request: NextRequest) {
   try {
     const userId = await getDataFromToken(request);
     
-    // Get last 6 months of expenses
     const sixMonthsAgo = new Date();
     sixMonthsAgo.setMonth(sixMonthsAgo.getMonth() - 6);
-    
-    const expenses = await Expense.find({
+
+    const expenses = await userId.expenses.find({
       "payers.0.userId": userId,
       createdAt: { $gte: sixMonthsAgo }
     }).sort({ createdAt: 1 });
@@ -109,12 +104,10 @@ async function GET(request: NextRequest) {
   }
 }
 
-// Advanced analytics endpoint for premium version
 async function POST(request: NextRequest) {
   try {
     const userId = await getDataFromToken(request);
     
-    // Get user to check if premium
     const user = await User.findById(userId);
     if (!user?.isPremium) {
       return NextResponse.json(
@@ -123,12 +116,10 @@ async function POST(request: NextRequest) {
       );
     }
     
-    // Get query parameters
     const url = new URL(request.url);
     const category = url.searchParams.get('category');
     const dateParam = url.searchParams.get('date');
     
-    // Calculate date range based on timeframe
     const endDate = dateParam ? new Date(dateParam) : new Date();
     const startDate = new Date(endDate);
     
@@ -138,10 +129,11 @@ async function POST(request: NextRequest) {
     };
     
     if (category && category !== 'all') {
-      query.tag = category;
-    }
+  query.category = category;
+}
+
     
-    const expenses = await Expense.find(query).sort({ createdAt: 1 });
+    const expenses = await user.expenses.find(query).sort({ createdAt: 1 });
     
     const categoriesData = processCategoriesData(expenses);
     
@@ -163,15 +155,14 @@ async function POST(request: NextRequest) {
 }
 
 
-// Process data for category pie chart
 function processCategoriesData(expenses: ExpenseType[]) {
   const categories: Record<string, number> = {};
   
   expenses.forEach(expense => {
-    if (!categories[expense.tag]) {
-      categories[expense.tag] = 0;
+    if (!categories[expense.category]) {
+      categories[expense.category] = 0;
     }
-    categories[expense.tag] += expense.amount;
+    categories[expense.category] += expense.amount;
   });
   
   return Object.entries(categories).map(([name, value]) => ({

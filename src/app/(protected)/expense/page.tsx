@@ -34,7 +34,7 @@ export default function ExpensePage() {
       <Dialog open={showDialog} onOpenChange={setShowDialog}>
         <DialogContent className="sm:max-w-xl max-h-[90vh] overflow-hidden border-t-4 border-primary border-l-0 border-r-0">
           <DialogHeader className="px-4 pt-6 pb-2">
-            <DialogTitle className="flex items-center font-sour_gummy text-xl gap-1">
+            <DialogTitle className="flex items-center text-xl gap-1">
               <Tag className="w-4 h-4" /> Add Expense
             </DialogTitle>
           </DialogHeader>
@@ -51,7 +51,6 @@ export default function ExpensePage() {
         <UserExpenses refresh={refresh} />
       </div>
 
-      {/* Floating circular add button positioned at bottom right */}
       <Button
         onClick={() => setShowDialog(true)}
         className="fixed bottom-20 md:bottom-8 right-3 md:right-8 z-10 rounded-full w-14 h-14 shadow-lg flex items-center justify-center p-0 bg-primary hover:bg-primary/90 text-4xl font-light"

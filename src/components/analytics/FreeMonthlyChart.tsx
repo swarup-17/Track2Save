@@ -23,7 +23,6 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from ".
 import { Button } from "../ui/button";
 import { Table, TableBody, TableCell, TableRow } from "../ui/table";
 
-// Define expense category types
 type ExpenseCategory =
   | "Food"
   | "Grocery"
@@ -36,7 +35,6 @@ type ExpenseCategory =
   | "Other"
   | "Remaining";
 
-// Define colors for each category
 const categoryColors: Record<ExpenseCategory, string> = {
   Food: "#FF5252",
   Grocery: "#2196F3",
@@ -47,16 +45,14 @@ const categoryColors: Record<ExpenseCategory, string> = {
   Rent: "#D81B60",
   Entertainment: "#546E7A",
   Other: "#3949AB",
-  Remaining: "#4CAF50" // Color for remaining income
+  Remaining: "#4CAF50"
 };
 
-// Define type for chart data
 interface ChartDataItem {
   name: string;
   value: number;
 }
 
-// Define type for tooltip props
 interface CustomTooltipProps {
   active?: boolean;
   payload?: Array<{
@@ -73,7 +69,6 @@ interface CustomTooltipProps {
   label?: string;
 }
 
-// Custom tooltip component for better formatting
 const CustomTooltip = ({ active, payload }: CustomTooltipProps) => {
   if (active && payload && payload.length) {
     const data = payload[0];
@@ -101,7 +96,6 @@ const CustomTooltip = ({ active, payload }: CustomTooltipProps) => {
   return null;
 };
 
-// Define type for custom label props
 interface CustomLabelProps {
   cx: number;
   cy: number;
@@ -113,7 +107,6 @@ interface CustomLabelProps {
   name: string;
 }
 
-// Custom label component
 const renderCustomizedLabel = (props: CustomLabelProps) => {
   const { cx, cy, midAngle, innerRadius, outerRadius, percent } = props;
   const RADIAN = Math.PI / 180;
@@ -138,7 +131,6 @@ const renderCustomizedLabel = (props: CustomLabelProps) => {
   );
 };
 
-// Define a proper type for the central label content props
 interface CentralLabelProps {
   viewBox?: {
     cx?: number;
@@ -187,7 +179,6 @@ export default function MonthlyPieChart() {
       try {
         setLoading(true);
 
-        // Fetch user profile and monthly spending data
         const [userResponse, spendingResponse] = await Promise.all([
           axios.get("/api/users/profile"),
           axios.get(`/api/expenses/userExpenses?month=${selectedMonth}&year=${selectedYear}`)
@@ -198,7 +189,6 @@ export default function MonthlyPieChart() {
 
         const expenseData = spendingResponse.data?.data || [];
 
-        // Reset chart data if no expenses
         if (expenseData.length === 0) {
           setChartData([]);
           setTotalSpent(0);
@@ -235,14 +225,11 @@ export default function MonthlyPieChart() {
 
           setTotalSpent(totalSpentAmount);
 
-          // Calculate remaining amount
           const remaining = userMonthlyIncome - totalSpentAmount;
           setRemainingAmount(remaining > 0 ? remaining : 0);
 
-          // Sort by value descending for better visualization
           expenseData.sort((a: { value: number }, b: { value: number }) => b.value - a.value);
 
-          // Sort by value descending
           chartDataItems.sort((a, b) => b.value - a.value);
           setChartData(chartDataItems);
         }
@@ -257,15 +244,36 @@ export default function MonthlyPieChart() {
     fetchData();
   }, [userId, selectedMonth, selectedYear]);
 
-  // Toggle showing remaining amount in the chart
   const toggleRemainingInChart = () => {
     setShowRemainingInChart(!showRemainingInChart);
   };
 
-  // Prepare final data for the chart
   const finalChartData: ChartDataItem[] = showRemainingInChart && remainingAmount > 0
     ? [...chartData, { name: "Remaining", value: remainingAmount }]
     : chartData;
+
+  const CentralLabelContent = (props: CentralLabelProps) => {
+    if (!props.viewBox || props.viewBox.cx === undefined || props.viewBox.cy === undefined) {
+      return null;
+    }
+
+    const { cx, cy } = props.viewBox;
+
+    const displayAmount = showRemainingInChart ? remainingAmount : totalSpent;
+    const displayLabel = showRemainingInChart ? "Remaining" : "Total Spent";
+    const displayColor = showRemainingInChart ? "fill-green-600" : "fill-red-500";
+
+    return (
+      <text x={cx} y={cy} textAnchor="middle" dominantBaseline="central">
+        <tspan x={cx} y={cy - 10} className={`text-lg font-bold ${displayColor}`}>
+          ₹{displayAmount.toLocaleString('en-IN')}
+        </tspan>
+        <tspan x={cx} y={cy + 10} className="text-xs fill-current">
+          {displayLabel}
+        </tspan>
+      </text>
+    );
+  };
 
   const renderContent = () => {
     if (loading) {
@@ -369,33 +377,13 @@ export default function MonthlyPieChart() {
     );
   };
 
-  // Central label content component with proper type
-  const CentralLabelContent = (props: CentralLabelProps) => {
-    if (!props.viewBox || props.viewBox.cx === undefined || props.viewBox.cy === undefined) {
-      return null;
-    }
-
-    const { cx, cy } = props.viewBox;
-
-    return (
-      <text x={cx} y={cy} textAnchor="middle" dominantBaseline="central">
-        <tspan x={cx} y={cy - 10} className="text-lg font-bold fill-red-500">
-          ₹{totalSpent.toLocaleString('en-IN')}
-        </tspan>
-        <tspan x={cx} y={cy + 10} className="text-xs fill-current">
-          Total Spent
-        </tspan>
-      </text>
-    );
-  };
-
   return (
     <Card className="w-full shadow-lg">
       <CardHeader className="pb-2">
-        <div className="flex flex-col md:flex-row md:items-center md:justify-between">
+        <div className="flex flex-col md:flex-row md:items-center md:justify-between md: gap-4">
           <div>
             <CardTitle className="text-lg md:text-xl">Monthly Spending</CardTitle>
-            <CardDescription>
+            <CardDescription className="text-sm text-gray-500">
               Showing expenditure for {months.find(m => m.value === selectedMonth)?.label} {selectedYear}
             </CardDescription>
           </div>
@@ -429,7 +417,9 @@ export default function MonthlyPieChart() {
             {chartData.length > 0 && (
               <Button
                 onClick={toggleRemainingInChart}
-                className={showRemainingInChart ? "text-sm bg-slate-700 hover:bg-neutral-500 px-3 py-2 rounded-md transition-colors" : "text-sm bg-green-400 hover:bg-green-500 text-black px-3 py-2 rounded-md transition-colors"}
+                className={showRemainingInChart ?
+                  "text-sm bg-slate-700 hover:bg-neutral-500 px-3 py-2 rounded-md transition-colors" :
+                  "text-sm bg-green-400 hover:bg-green-500 text-black px-3 py-2 rounded-md transition-colors"}
               >
                 {showRemainingInChart ? "Hide" : "Show"} Remaining
               </Button>
@@ -447,7 +437,7 @@ export default function MonthlyPieChart() {
                 <tr className="border-b-2 border-current">
                   <th className="text-left text-lg py-2 px-2 font-medium text-current">Category</th>
                   <th className="text-right text-lg py-2 px-2 font-medium text-current">Amount</th>
-                  <th className="text-right text-lg py-2 px-2 font-medium text-current">% of Total</th>
+                  <th className="text-right text-lg py-2 px-2 font-medium text-current"> % of Total</th>
                 </tr>
               </thead>
               <TableBody>

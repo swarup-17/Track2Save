@@ -21,12 +21,12 @@ import {
   CalendarIcon,
   ChevronLeft,
   ChevronRight,
+  Pencil,
 } from "lucide-react";
 import { Button } from "../ui/button";
 import { useAuthStore } from "@/store/Auth";
 import { useToast } from "../../hooks/use-toast";
 
-// Enhanced TypeScript types
 interface Payer {
   userId: string;
   amount: number;
@@ -62,6 +62,7 @@ import {
   TooltipTrigger,
 } from "../ui/tooltip";
 import { Separator } from "../ui/separator";
+import EditExpenseForm from "../expense/EditExpenseForm";
 import {
   Select,
   SelectContent,
@@ -85,6 +86,7 @@ import {
   DialogFooter,
   DialogDescription,
 } from "../ui/dialog";
+import { ScrollArea } from "../ui/scroll-area";
 
 export default function UserExpenses({ refresh }: { refresh: boolean }) {
   const [loading, setLoading] = useState(false);
@@ -99,16 +101,17 @@ export default function UserExpenses({ refresh }: { refresh: boolean }) {
   const { userId } = useAuthStore();
   const { toast } = useToast();
 
-  // Filter states
   const [selectedMonth, setSelectedMonth] = useState<string>(
     String(new Date().getMonth() + 1)
-  ); // Current month (1-12)
+  );
   const [selectedYear, setSelectedYear] = useState<string>(
     String(new Date().getFullYear())
-  ); // Current year
+  );
   const [selectedTag, setSelectedTag] = useState<string>("All");
   const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
+  const [editDialogOpen, setEditDialogOpen] = useState(false);
   const [expenseToDelete, setExpenseToDelete] = useState<string | null>(null);
+  const [expenseToEdit, setExpenseToEdit] = useState<Expense | null>(null);
 
   const tags = [
     "All",
@@ -124,6 +127,7 @@ export default function UserExpenses({ refresh }: { refresh: boolean }) {
   ];
 
   const months = [
+    { value: "all", label: "All Months" },
     { value: "1", label: "January" },
     { value: "2", label: "February" },
     { value: "3", label: "March" },
@@ -136,7 +140,6 @@ export default function UserExpenses({ refresh }: { refresh: boolean }) {
     { value: "10", label: "October" },
     { value: "11", label: "November" },
     { value: "12", label: "December" },
-    { value: "all", label: "All Months" },
   ];
 
   // Generate years (current year and 5 years back)
@@ -147,7 +150,6 @@ export default function UserExpenses({ refresh }: { refresh: boolean }) {
     setLoading(true);
     setError("");
     try {
-      // Build URL with query parameters
       let url = "/api/expenses/userExpenses";
       const params = new URLSearchParams();
 
@@ -196,11 +198,7 @@ export default function UserExpenses({ refresh }: { refresh: boolean }) {
 
   useEffect(() => {
     getUserExpenses(1);
-  }, [selectedMonth, selectedYear, selectedTag, getUserExpenses]);
-
-  useEffect(() => {
-    getUserExpenses(1);
-  }, [refresh, getUserExpenses]);
+  }, [selectedMonth, selectedYear, selectedTag, refresh, getUserExpenses]);
 
   const formatDate = (date: Date | string) => {
     return new Date(date).toLocaleDateString("en-US", {
@@ -230,12 +228,13 @@ export default function UserExpenses({ refresh }: { refresh: boolean }) {
         headers: { "Content-Type": "application/json" }
       });
 
-      // Refresh local state or re-fetch updated data
       setExpenses(prev => prev.filter(exp => exp._id !== expenseToDelete));
 
       if (response.status === 200) {
         toast({
           title: "Success",
+          variant: "destructive",
+          duration: 2000,
           description: "Expense deleted successfully",
         });
         await getUserExpenses(pagination.page);
@@ -266,13 +265,11 @@ export default function UserExpenses({ refresh }: { refresh: boolean }) {
   };
 
   const getUserRole = (expense: Expense) => {
-    // Check if role is already set
     const userPayer = expense.payers?.find(payer => payer.userId === userId);
     if (userPayer?.role) {
       return userPayer.role;
     }
 
-    // Fallback to default role calculation
     const isCreator = expense.payers &&
       expense.payers.length > 0 &&
       expense.payers[0].userId === userId;
@@ -332,7 +329,44 @@ export default function UserExpenses({ refresh }: { refresh: boolean }) {
 
   return (
     <div className="space-y-6 pb-6">
-      {/* Delete confirmation dialog */}
+      <Dialog open={editDialogOpen} onOpenChange={setEditDialogOpen}>
+        <DialogContent className="sm:max-w-xl max-h-[90vh] overflow-hidden border-t-4 border-primary border-l-0 border-r-0">
+          <DialogHeader className="px-4 pt-6 pb-2">
+            <DialogTitle className="flex items-center text-xl gap-1">
+              <Pencil className="w-4 h-4" />Edit Expense
+            </DialogTitle>
+          </DialogHeader>
+          <ScrollArea className="pb-6 max-h-[calc(90vh-80px)]">
+            {expenseToEdit ? (
+              <EditExpenseForm
+                expense={{
+                  ...expenseToEdit,
+                  category: expenseToEdit.category,
+                }}
+                userId={userId}
+                onExpenseUpdated={() => {
+                  getUserExpenses(pagination.page);
+                  setEditDialogOpen(false);
+                  setExpenseToEdit(null);
+                  toast({
+                    title: "Success",
+                    variant: "success",
+                    duration: 2000,
+                    description: "Expense updated successfully",
+                  });
+                }}
+                onClose={() => {
+                  setEditDialogOpen(false);
+                  setExpenseToEdit(null);
+                }}
+              />
+            ) : (
+              <div className="text-muted-foreground text-sm">No expense selected</div>
+            )}
+          </ScrollArea>
+        </DialogContent>
+      </Dialog>
+
       <Dialog open={deleteDialogOpen} onOpenChange={setDeleteDialogOpen}>
         <DialogContent>
           <DialogHeader>
@@ -375,7 +409,7 @@ export default function UserExpenses({ refresh }: { refresh: boolean }) {
         <div className="flex flex-wrap items-center gap-2">
           {/* Month selector */}
           <Select value={selectedMonth} onValueChange={setSelectedMonth}>
-            <SelectTrigger className="w-32">
+            <SelectTrigger className="w-36">
               <SelectValue placeholder="Month" />
             </SelectTrigger>
             <SelectContent>
@@ -429,8 +463,7 @@ export default function UserExpenses({ refresh }: { refresh: boolean }) {
         <div className="flex flex-col items-end">
           <p className="text-sm text-muted-foreground text-right">
             {pagination.total} {pagination.total === 1 ? "expense" : "expenses"}{" "}
-            in {selectedMonth === "all" ? "" : getMonthName(selectedMonth)}{" "}
-            {selectedYear}
+            in {getMonthName(selectedMonth)} {selectedYear}
           </p>
           {expenses.length > 0 && (
             <p className="text-sm font-medium">
@@ -510,6 +543,16 @@ export default function UserExpenses({ refresh }: { refresh: boolean }) {
                         </DropdownMenuTrigger>
                         <DropdownMenuContent align="end" className="w-48">
                           <DropdownMenuItem
+                            className="flex items-center cursor-pointer space-x-2"
+                            onClick={() => {
+                              setExpenseToEdit(expense);
+                              setEditDialogOpen(true);
+                            }}
+                          >
+                            <Pencil className="w-4 h-4" /> Edit
+                          </DropdownMenuItem>
+
+                          <DropdownMenuItem
                             className="flex items-center cursor-pointer space-x-2 text-red-600"
                             onClick={() => openDeleteDialog(expense._id)}
                           >
@@ -583,7 +626,6 @@ export default function UserExpenses({ refresh }: { refresh: boolean }) {
         </div>
       )}
 
-      {/* Pagination controls */}
       {pagination.totalPages > 1 && (
         <div className="flex items-center justify-center gap-2 pt-4">
           <Button

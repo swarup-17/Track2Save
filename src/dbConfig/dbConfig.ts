@@ -1,6 +1,6 @@
 import mongoose from "mongoose";
 
-let isConnected = false; // Prevent multiple connections
+let isConnected = false;
 
 export async function connect() {
   if (isConnected) {
