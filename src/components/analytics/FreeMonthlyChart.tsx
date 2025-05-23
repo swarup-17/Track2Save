@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState, useEffect, useCallback, useRef } from "react";
 import {
   Card,
   CardContent,
@@ -19,6 +19,7 @@ import {
   Label
 } from "recharts";
 import axios from "axios";
+import { generateFinancialInsights } from './generateFinancialInsights';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "../ui/select";
 import { Button } from "../ui/button";
 import { Table, TableBody, TableCell, TableRow } from "../ui/table";
@@ -114,7 +115,7 @@ const renderCustomizedLabel = (props: CustomLabelProps) => {
   const x = cx + radius * Math.cos(-midAngle * RADIAN);
   const y = cy + radius * Math.sin(-midAngle * RADIAN);
 
-  if (percent < 0.05) return null; // Don't render labels for tiny slices
+  if (percent < 0.05) return null;
 
   return (
     <text
@@ -153,12 +154,14 @@ export default function MonthlyPieChart() {
   const [showRemainingInChart, setShowRemainingInChart] = useState<boolean>(false);
   const [selectedMonth, setSelectedMonth] = useState<string>(String(new Date().getMonth() + 1));
   const [selectedYear, setSelectedYear] = useState<string>(String(new Date().getFullYear()));
+  const [aiInsights, setAiInsights] = useState<string>("");
+  const [isGeneratingInsights, setIsGeneratingInsights] = useState<boolean>(false);
+  const aiInsightsRef = useRef<HTMLDivElement>(null);
 
   // Generate years (current year and 5 years back)
   const currentYear = new Date().getFullYear();
   const years = Array.from({ length: 6 }, (_, i) => String(currentYear - i));
 
-  // Months data
   const months = [
     { value: "1", label: "January" },
     { value: "2", label: "February" },
@@ -173,6 +176,35 @@ export default function MonthlyPieChart() {
     { value: "11", label: "November" },
     { value: "12", label: "December" }
   ];
+
+  const getAiInsights = useCallback(async () => {
+    if (chartData.length === 0) return 0;
+    setIsGeneratingInsights(true);
+    try {
+      const spendingData = {
+        totalSpent,
+        monthlyIncome,
+        remainingAmount,
+        categories: chartData
+      };
+
+      const insights = await generateFinancialInsights(spendingData);
+      setAiInsights(insights);
+
+      setTimeout(() => {
+        aiInsightsRef.current?.scrollIntoView({
+          behavior: 'smooth',
+          block: 'start'
+        });
+      }, 100);
+    } catch (error) {
+      console.error('Failed to generate insights:', error);
+      setAiInsights("Failed to generate insights. Please try again.");
+    } finally {
+      setIsGeneratingInsights(false);
+    }
+  }, [totalSpent, monthlyIncome, remainingAmount, chartData]);
+
 
   useEffect(() => {
     const fetchData = async () => {
@@ -370,6 +402,26 @@ export default function MonthlyPieChart() {
                 <span>{Math.round((totalSpent / monthlyIncome) * 100)}% of budget used</span>
                 <span>100%</span>
               </div>
+              {chartData.length > 0 && (
+                <div className="flex flex-col gap-2 pt-7">
+                  <Button
+                    onClick={toggleRemainingInChart}
+                    className={`w-full font-medium py-2 px-4 rounded-lg transition-colors ${showRemainingInChart
+                      ? "bg-gray-600 hover:bg-gray-700 text-white"
+                      : "bg-green-500 hover:bg-green-600 text-white"
+                      }`}
+                  >
+                    {showRemainingInChart ? "Hide Remaining" : "Show Remaining"}
+                  </Button>
+                  <Button
+                    onClick={getAiInsights}
+                    disabled={isGeneratingInsights}
+                    className="w-full bg-blue-600 hover:bg-blue-700 text-white font-medium py-2 px-4 rounded-lg transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+                  >
+                    {isGeneratingInsights ? "Generating..." : "Generate AI Insights"}
+                  </Button>
+                </div>
+              )}
             </div>
           </div>
         </div>
@@ -387,10 +439,10 @@ export default function MonthlyPieChart() {
               Showing expenditure for {months.find(m => m.value === selectedMonth)?.label} {selectedYear}
             </CardDescription>
           </div>
-          <div className="flex flex-col md:flex-row gap-2 items-end md:items-center">
+          <div className="flex flex-col md:flex-row gap-2 md:items-center">
             <div className="flex gap-2">
               <Select value={selectedMonth} onValueChange={setSelectedMonth}>
-                <SelectTrigger className="w-[120px]">
+                <SelectTrigger className="w-[200px]">
                   <SelectValue placeholder="Month" />
                 </SelectTrigger>
                 <SelectContent>
@@ -402,7 +454,7 @@ export default function MonthlyPieChart() {
                 </SelectContent>
               </Select>
               <Select value={selectedYear} onValueChange={setSelectedYear}>
-                <SelectTrigger className="w-[100px]">
+                <SelectTrigger className="w-[200px]">
                   <SelectValue placeholder="Year" />
                 </SelectTrigger>
                 <SelectContent>
@@ -414,16 +466,6 @@ export default function MonthlyPieChart() {
                 </SelectContent>
               </Select>
             </div>
-            {chartData.length > 0 && (
-              <Button
-                onClick={toggleRemainingInChart}
-                className={showRemainingInChart ?
-                  "text-sm bg-slate-700 hover:bg-neutral-500 px-3 py-2 rounded-md transition-colors" :
-                  "text-sm bg-green-400 hover:bg-green-500 text-black px-3 py-2 rounded-md transition-colors"}
-              >
-                {showRemainingInChart ? "Hide" : "Show"} Remaining
-              </Button>
-            )}
           </div>
         </div>
       </CardHeader>
@@ -459,6 +501,24 @@ export default function MonthlyPieChart() {
           </div>
         )}
       </CardContent>
+
+      {chartData.length > 0 && (
+        <div
+          ref={aiInsightsRef}
+          className="my-5 p-4 rounded-lg">
+          {aiInsights && (
+            <div className="prose prose-sm max-w-none">
+              <h3 className="text-2xl font-bolder mb-4 flex items-center">
+                <span className="mr-2">🤖</span>
+                AI Financial Insights
+              </h3>
+              <div className="prose prose-sm max-w-none leading-relaxed">
+                <div className="whitespace-pre-line">{aiInsights}</div>
+              </div>
+            </div>
+          )}
+        </div>
+      )}
     </Card>
   );
 }

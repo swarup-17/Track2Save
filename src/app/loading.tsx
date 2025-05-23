@@ -10,7 +10,7 @@ export default function Loading() {
           <div className="absolute inset-0 flex items-center justify-center text-4xl font-bold text-white">$</div>
         </div>
 
-        <h2 className="text-2xl font-bold mb-6 text-center text-primary font-sour_gummy">Track2Save</h2>
+        <h2 className="text-2xl font-bold mb-6 text-center text-primary font-mono">Track2Save</h2>
 
         {/* Loading animation */}
         <div className="flex space-x-2 justify-center mb-4">

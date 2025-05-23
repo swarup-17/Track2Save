@@ -402,7 +402,7 @@ export default function UserExpenses({ refresh }: { refresh: boolean }) {
       </Dialog>
 
       <div className="flex flex-col md:flex-row md:items-center md:justify-between sticky top-0 bg-background px-2 py-4 z-10 gap-4">
-        <h2 className="text-2xl font-bold tracking-tight text-foreground font-sour_gummy">
+        <h2 className="text-2xl font-bold tracking-tight text-foreground">
           Expenses
         </h2>
 
