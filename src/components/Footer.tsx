@@ -38,7 +38,7 @@ function Footer() {
         </div>
         <div className="border-t border-gray-200 pt-6">
           <p className="text-center text-sm text-muted-foreground">
-            © {new Date().getFullYear()} Track2Save . All rights reserved.
+            &copy; {new Date().getFullYear()} Track2Save . <a href="https://swarup-portfolio-flame.vercel.app" className="hover:text-primary" target="_blank" rel="noopener noreferrer">All rights reserved.</a>
           </p>
         </div>
       </div>

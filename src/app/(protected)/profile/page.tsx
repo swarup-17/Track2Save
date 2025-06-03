@@ -57,8 +57,7 @@ export default function ProfilePage() {
           monthlyIncome: income ? Number(income) : 0,
         });
 
-        // TODO: Add API endpoint for updating UPI ID if needed
-        // For now, we'll just update the UI
+        // TODO: Add API endpoint for updating UPI ID
 
         // Update user data
         getUser();

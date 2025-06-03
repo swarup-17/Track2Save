@@ -66,12 +66,12 @@ export default function Home() {
   const useCases: Record<UseCase, UseCaseData> = {
     personal: {
       title: "Personal Finance",
-      description: "Track your daily expenses, categorize spending, and get insights into your financial habits. Set budgets and reach your savings goals faster.",
+      description: "Track your daily expenses, categorize spending, and get insights into your financial habits and reach your savings goals faster.",
       points: [
         "Categorize personal expenses with custom tags",
-        "Get monthly spending reports and insights",
-        "Set budget limits and receive alerts",
-        "Track recurring subscriptions and bills"
+        "Get monthly spending reports and insights by AI",
+        "Set your income and savings goals",
+        "Track your progress with visual charts",
       ]
     },
     friends: {
@@ -90,7 +90,7 @@ export default function Home() {
       points: [
         "Create trip-specific expense groups",
         "Split costs for accommodation, meals, and activities",
-        "Handle expenses in multiple currencies",
+        "Handle expenses in one place",
         "Generate end-of-trip settlement summaries"
       ]
     }
@@ -147,11 +147,6 @@ export default function Home() {
             >
               Get Started Free
             </ShimmerButton>
-          </div>
-          <div className="mt-6 lg:mt-4 text-muted-foreground text-sm flex flex-wrap justify-center gap-1">
-            <span>No credit card required </span>
-            <span>• Free basic plan</span>
-            <span>• Cancel anytime</span>
           </div>
         </div>
       </header>

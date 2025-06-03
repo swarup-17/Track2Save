@@ -397,10 +397,8 @@ export default function MonthlyPieChart() {
                   style={{ width: `${Math.min(100, (totalSpent / monthlyIncome) * 100)}%` }}
                 />
               </div>
-              <div className="flex justify-between text-xs text-gray-500 mt-1">
-                <span>0%</span>
+              <div className="flex justify-center text-xs text-gray-500 mt-2">
                 <span>{Math.round((totalSpent / monthlyIncome) * 100)}% of budget used</span>
-                <span>100%</span>
               </div>
               {chartData.length > 0 && (
                 <div className="flex flex-col gap-2 pt-7">
