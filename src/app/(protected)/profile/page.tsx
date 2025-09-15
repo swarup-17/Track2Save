@@ -40,7 +40,6 @@ export default function ProfilePage() {
 
   const handleEditToggle = async () => {
     if (isEditing) {
-      // Save changes
       try {
         if (income && (isNaN(Number(income)) || Number(income) < 0)) {
           toast({
@@ -57,9 +56,6 @@ export default function ProfilePage() {
           monthlyIncome: income ? Number(income) : 0,
         });
 
-        // TODO: Add API endpoint for updating UPI ID
-
-        // Update user data
         getUser();
 
         toast({
@@ -115,7 +111,6 @@ export default function ProfilePage() {
 
           <p className="text-gray-600 dark:text-gray-400 text-sm mt-1">{user?.phone || "912xxxx874"}</p>
 
-          {/* Monthly Income */}
           <div className="mt-6 w-full text-sm text-gray-700 dark:text-gray-300 space-y-3">
             <div className="flex justify-between items-center">
               <label className="font-medium">Monthly Income:</label>
@@ -131,7 +126,6 @@ export default function ProfilePage() {
               )}
             </div>
 
-            {/* UPI ID */}
             <div className="flex justify-between items-center">
               <label className="font-medium">UPI ID:</label>
               {isEditing ? (
@@ -147,7 +141,6 @@ export default function ProfilePage() {
             </div>
           </div>
 
-          {/* Friends Section */}
           <div className="w-full mt-6 border-t dark:border-gray-700 pt-4">
             <h3 className="text-lg font-medium text-gray-700 dark:text-gray-300 text-center">
               {user?.friends.length ?? 0} Friend{(user?.friends.length ?? 0) !== 1 ? "s" : ""}

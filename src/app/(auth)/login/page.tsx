@@ -11,7 +11,6 @@ import { useAuthStore } from "@/store/Auth";
 export default function LoginPage() {
   const { login } = useAuthStore();
   const { toast } = useToast();
-  // const router = useRouter();
   const [error, setError] = useState("");
   const [loading, setLoading] = useState(false);
   const [phone, setPhone] = useState("");

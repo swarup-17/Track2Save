@@ -92,7 +92,6 @@ export default function Header() {
           Track2Save
         </Link>
 
-        {/* Desktop Navigation */}
         <div className="hidden md:flex items-center space-x-8">
           {navItems
             .filter(
@@ -119,7 +118,6 @@ export default function Header() {
             ))}
         </div>
 
-        {/* Right Side Controls */}
         <div className="flex items-center gap-4">
           {userId ? (
             <DropdownMenu>
@@ -188,7 +186,6 @@ export default function Header() {
                 </Link>
               </div>
 
-              {/* Mobile Menu - ONLY for non-authenticated users */}
               <Sheet>
                 <SheetTrigger className="md:hidden">
                   <Menu size={20} className="text-muted-foreground" />
