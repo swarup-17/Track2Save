@@ -57,7 +57,7 @@ export async function generateFinancialInsights(data: SpendingData): Promise<str
 
     try {
         const response = await genAI.models.generateContent({
-            model: "gemini-2.0-flash",
+            model: "gemini-2.5-flash",
             contents: prompt,
         });
         return response.text ?? "No response generated.";
