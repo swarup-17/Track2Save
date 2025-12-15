@@ -33,25 +33,25 @@ export async function generateFinancialInsights(data: SpendingData): Promise<str
         ${categoryBreakdown}
 
         IMPORTANT FORMATTING REQUIREMENTS:
-        - All section headings **MUST** be formatted using **Markdown bold syntax** (e.g., **Heading**) followed by two asterisks on the next line (e.g., **Heading**\n\n**Subheading**).
-        - Use **Markdown bullet points** (*) for the content within the suggestions/advice sections.
-        - Write in complete sentences with proper paragraph structure.
+        - Write all sub-points and explanations in plain text without any formatting
+        - Write in complete sentences with proper paragraph structure
+        - Keep explanations clear and actionable
 
-        Structure your response EXACTLY as follows:
+        Structure your response exactly as follows:
 
-        **Spending Behavior Summary**
+        Spending Behavior Summary
         [Analyze spending patterns in plain text paragraphs]
 
-        **Savings Enhancement Suggestions**
-        * [Provide specific recommendation 1]
-        * [Provide specific recommendation 2]
+        Savings Enhancement Suggestions
+        [Provide specific recommendations in plain text format]
 
-        **Budget Optimization Advice**
-        * [Provide advice 1]
-        * [Provide advice 2]
-        * [Provide advice 3]
+        Budget Optimization Advice
+        [Include advice for high expense ratios and general budget tips in plain text]
 
-        Remember: Ensure the entire output is structured using the Markdown requested above.
+        Remember: Only section headings should be bold. All content within sections should be in normal text formatting.
+
+        Format:
+            Return the output as 3–4 bullet points, with no extra spaces, explanations, or introductory text—just the bullet points.
         `;
 
 
